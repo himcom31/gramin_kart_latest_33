@@ -1,5 +1,5 @@
 const { pool } = require('../../config/db');
-const bcrypt   = require('bcryptjs');
+const bcrypt = require('bcryptjs');
 
 const createUserTables = async () => {
     await pool.query(`
@@ -13,9 +13,11 @@ const createUserTables = async () => {
             avatar      VARCHAR(500) DEFAULT NULL,
             gender      ENUM('Male','Female','Other','Prefer not to say','') DEFAULT '',
             dateOfBirth DATE         DEFAULT NULL,
-            isActive    BOOLEAN      DEFAULT true,
-            createdAt   TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
-            updatedAt   TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            isActive         BOOLEAN      DEFAULT true,
+resetToken       VARCHAR(64)  DEFAULT NULL,
+resetTokenExpiry DATETIME     DEFAULT NULL,
+createdAt        TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+updatedAt        TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         )
     `);
 
@@ -81,7 +83,7 @@ const User = {
 
     // ── Create user with hashed password ─────────────────────────────────
     create: async ({ fullName, country, phone, email, password }) => {
-        const salt           = await bcrypt.genSalt(10);
+        const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
         const [result] = await pool.query(
@@ -95,8 +97,8 @@ const User = {
 
     // ── Find one user by filters, optionally include password ─────────────
     findOne: async (filters = {}, includePassword = false) => {
-        const keys   = Object.keys(filters);
-        const where  = keys.map(k => `${k} = ?`).join(' AND ');
+        const keys = Object.keys(filters);
+        const where = keys.map(k => `${k} = ?`).join(' AND ');
         const values = keys.map(k => filters[k]);
 
         const passwordField = includePassword ? ', password' : '';
@@ -126,17 +128,24 @@ const User = {
     },
 
     findByIdAndUpdate: async (id, data) => {
-        const allowed = ['fullName','country','phone','avatar','gender','dateOfBirth','isActive','password'];
-        const fields  = Object.keys(data).filter(f => allowed.includes(f));
+        const allowed = ['fullName','country','phone','avatar','gender','dateOfBirth','isActive','password','resetToken','resetTokenExpiry'];
+        const fields = Object.keys(data).filter(f => allowed.includes(f));
         if (fields.length === 0) return await User.findById(id);
 
         const setClause = fields.map(f => `${f} = ?`).join(', ');
-        const values    = fields.map(f => data[f]);
+        const values = fields.map(f => data[f]);
 
         await pool.query(`UPDATE users SET ${setClause} WHERE id = ?`, [...values, id]);
         return await User.findById(id);
     },
 
+    findByResetToken: async (token) => {
+    const [rows] = await pool.query(
+        `SELECT * FROM users WHERE resetToken = ? AND resetTokenExpiry > NOW() LIMIT 1`,
+        [token]
+    );
+    return rows[0] || null;
+},
     // ── Check phone uniqueness excluding a specific user ──────────────────
     phoneExistsForOtherUser: async (phone, excludeId) => {
         const [rows] = await pool.query(
@@ -277,8 +286,8 @@ const User = {
     // ── Pagination (used by notificationController) ───────────────────────
     findWithPagination: async (filters = {}, { page = 1, limit = 50 } = {}) => {
         const offset = (page - 1) * limit;
-        const vals   = [];
-        const where  = [];
+        const vals = [];
+        const where = [];
 
         if (filters.idIn && filters.idIn.length > 0) {
             const placeholders = filters.idIn.map(() => '?').join(', ');

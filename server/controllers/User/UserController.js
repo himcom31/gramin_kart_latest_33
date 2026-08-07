@@ -1,5 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../../models/User/User');
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 
 // ── Helper: generate JWT ──────────────────────────────────────────────────
 const generateToken = (userId) => {
@@ -219,4 +221,109 @@ const changePassword = async (req, res) => {
     }
 };
 
-module.exports = { register, login, getMe, updateProfile, changePassword };
+
+const forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+
+        if (!email) {
+            return res.status(400).json({ success: false, message: 'Email is required.' });
+        }
+
+        // ✅ Email se user dhundho — token se nahi
+        const user = await User.findOne({ email: email.toLowerCase().trim() });
+
+        if (!user) {
+            return res.status(200).json({
+                success: true,
+                message: 'If this email is registered, a reset link has been sent.',
+            });
+        }
+
+        const resetToken = crypto.randomBytes(32).toString('hex');
+        const resetTokenExpiry = new Date(Date.now() + 30 * 60 * 1000);
+
+        await User.findByIdAndUpdate(user.id, {
+            resetToken,
+            resetTokenExpiry,
+        });
+
+        const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS,
+            },
+        });
+
+        await transporter.sendMail({
+            from: `"GraminKart" <${process.env.EMAIL_USER}>`,
+            to: user.email,
+            subject: 'Reset Your Password — GraminKart',
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px;">
+                    <h2 style="color: #16a34a; margin-bottom: 8px;">GraminKart</h2>
+                    <p style="color: #374151;">Hi <strong>${user.fullName}</strong>,</p>
+                    <p style="color: #374151;">We received a request to reset your password. Click the button below to set a new one:</p>
+                    <a href="${resetUrl}" style="display: inline-block; margin: 20px 0; padding: 12px 28px; background-color: #16a34a; color: white; text-decoration: none; border-radius: 999px; font-weight: 600; font-size: 14px;">
+                        Reset Password
+                    </a>
+                    <p style="color: #6b7280; font-size: 13px;">This link will expire in <strong>30 minutes</strong>. If you didn't request this, you can safely ignore this email.</p>
+                    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
+                    <p style="color: #9ca3af; font-size: 12px;">© GraminKart. If the button doesn't work, copy this link: ${resetUrl}</p>
+                </div>
+            `,
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: 'If this email is registered, a reset link has been sent.',
+        });
+
+    } catch (error) {
+        console.error('ForgotPassword error:', error);
+        return res.status(500).json({ success: false, message: 'Server error. Please try again.' });
+    }
+};
+// ── Reset Password ────────────────────────────────────────────────────────
+const resetPassword = async (req, res) => {
+    try {
+        const { token, newPassword } = req.body;
+
+        if (!token || !newPassword) {
+            return res.status(400).json({ success: false, message: 'Token and new password are required.' });
+        }
+        if (newPassword.length < 6) {
+            return res.status(400).json({ success: false, message: 'Password must be at least 6 characters.' });
+        }
+
+        // Find user with this token and check it hasn't expired
+        const user = await User.findByResetToken(token);
+
+        if (!user) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid or expired reset link. Please request a new one.',
+            });
+        }
+
+        const hashedPassword = await User.hashPassword(newPassword);
+
+        // Update password and clear the token
+        await User.findByIdAndUpdate(user.id, {
+            password: hashedPassword,
+            resetToken: null,
+            resetTokenExpiry: null,
+        });
+
+        return res.status(200).json({ success: true, message: 'Password reset successfully. You can now log in.' });
+
+    } catch (error) {
+        console.error('ResetPassword error:', error);
+        return res.status(500).json({ success: false, message: 'Server error. Please try again.' });
+    }
+};
+
+module.exports = { register, login, getMe, updateProfile, changePassword ,forgotPassword,resetPassword};

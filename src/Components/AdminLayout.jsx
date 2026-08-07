@@ -34,6 +34,10 @@ import SupportTicketDetail from "./Admin/Supportticketdetail";
 import OrdersList from "./Admin/Orderslist";
 import BannerList from './Admin/BannerList';
 import AddBanner from './Admin/AddBanner';
+import Customers from '../Admin/Pages/Customers';
+import CustomerOrders from '../Admin/Pages/Customerorders';
+
+
 
 const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -121,6 +125,9 @@ const AdminLayout = () => {
             <Route path="Order-list" element={<OrdersList />} />
             <Route path="bannerList" element={<BannerList />} />
             <Route path="banner" element={<AddBanner />} />
+            <Route path="customers" element={<Customers />} />
+            <Route path="customers/:id/orders" element={<CustomerOrders />} />
+
           </Routes>
         </main>
 

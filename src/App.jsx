@@ -15,6 +15,9 @@ import HomePage from './User/Pages/HomePage';
 // User Shell — visible on all user-side pages
 import UserNavbar from './User/Components/Usernavbar';
 import UserFooter from './User/Components/Userfooter';
+import ResetPassword from './User/Pages/ResetPassword';  // ← add this import
+import ForgotPassword from './User/Pages/ForgotPassword';
+
 
 // driver
 import DeliveryAgentApp from './Driver/Deliveryagentapp';
@@ -246,6 +249,8 @@ function App() {
         <Route path="/user/termcondition" element={<TermsAndConditions />} />
         <Route path="/user/privacy" element={<PrivacyPolicy />} />
         <Route path="/user/deleteaccount" element={<DeleteAccount />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
 
 
 

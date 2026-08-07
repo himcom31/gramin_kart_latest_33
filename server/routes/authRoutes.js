@@ -1,7 +1,11 @@
 const express  = require('express');
 const router   = express.Router();
-const { login } = require('../controllers/authController');
-const { protect } = require('../middleware/authMiddleware');
+const { login ,getAllCustomers,
+    getCustomer,
+    updateCustomerPassword,
+    toggleCustomerStatus,getCustomerOrders} = require('../controllers/authController');
+    const { protect, isAdmin } = require('../middleware/authMiddleware');
+
 const Admin    = require('../models/Admin');
 const bcrypt   = require('bcryptjs');
 const jwt      = require('jsonwebtoken');
@@ -45,5 +49,11 @@ router.post('/register-admin', async (req, res) => {
         res.status(500).json({ message: 'Registration failed', error: error.message });
     }
 });
+
+router.get('/customers',             protect, isAdmin,         getAllCustomers);
+router.get('/customers/:id',       protect, isAdmin,           getCustomer);
+router.put('/customers/:id/password',  protect, isAdmin,       updateCustomerPassword);
+router.put('/customers/:id/toggle-status',    protect, isAdmin,    toggleCustomerStatus);
+router.get('/customers/:id/orders', protect, isAdmin, getCustomerOrders);
 
 module.exports = router;
