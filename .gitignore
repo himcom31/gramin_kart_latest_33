@@ -29,7 +29,6 @@ dist-ssr
 .env.production
 
 # Unnecessary for deployment
-src/
 public/
 eslint.config.js
 nginx.conf
