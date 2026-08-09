@@ -378,10 +378,12 @@ export default function OrderDetailModal({ order: initialOrder, onClose, onStatu
 
   // ── Delivery Estimate Helper ───────────────────────────────────────────────
   const getDeliveryEstimate = (estimatedDeliveryAt) => {
-    if (!estimatedDeliveryAt) return null;
-    const target = new Date(estimatedDeliveryAt);
-    const now = new Date();
-    const diffMs = target - now;
+  if (!estimatedDeliveryAt) return null;
+  // DB se UTC string aata hai, IST offset minus karo
+  const IST_OFFSET = 5.5 * 60 * 60 * 1000;
+  const target = new Date(new Date(estimatedDeliveryAt).getTime() - IST_OFFSET);
+  const now = new Date();
+  const diffMs = target - now;
 
     const dateStr = target.toLocaleString("en-IN", {
       day: "2-digit", month: "short", year: "numeric",
@@ -433,7 +435,7 @@ export default function OrderDetailModal({ order: initialOrder, onClose, onStatu
       });
       const data = await res.json();
       if (data.success) {
-        setOrder(prev => ({ ...prev, estimatedDeliveryAt: target.toISOString() }));
+  setOrder(prev => ({ ...prev, estimatedDeliveryAt: targetIST.toISOString() }));
         setEstMsg("success");
         setEstDays(""); setEstHours(""); setEstMins("");
       } else {
