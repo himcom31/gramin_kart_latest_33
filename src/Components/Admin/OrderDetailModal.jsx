@@ -380,8 +380,7 @@ export default function OrderDetailModal({ order: initialOrder, onClose, onStatu
   const getDeliveryEstimate = (estimatedDeliveryAt) => {
   if (!estimatedDeliveryAt) return null;
   // DB se UTC string aata hai, IST offset minus karo
-  const IST_OFFSET = 5.5 * 60 * 60 * 1000;
-  const target = new Date(new Date(estimatedDeliveryAt).getTime() - IST_OFFSET);
+  const target = new Date(estimatedDeliveryAt);
   const now = new Date();
   const diffMs = target - now;
 
@@ -423,9 +422,7 @@ export default function OrderDetailModal({ order: initialOrder, onClose, onStatu
     target.setMinutes(target.getMinutes() + mins);
 
     // ✅ IST offset fix — 5 hours 30 minutes add karo
-    const IST_OFFSET = 5.5 * 60 * 60 * 1000;
-    const targetIST = new Date(target.getTime() + IST_OFFSET);
-
+    body: JSON.stringify({ estimatedDeliveryAt: target.toISOString() }),
     setEstSaving(true); setEstMsg("");
     try {
       const res = await fetch(`${API_URL}/api/orders/admin/${order.id}/delivery-estimate`, {
