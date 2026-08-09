@@ -9,7 +9,8 @@ const {
   adminGetAllOrders,
   adminUpdateOrderStatus,
   adminAssignRider,
-  adminGetOrderById
+  adminGetOrderById,
+  adminSetDeliveryEstimate,  // ← ADD
 } = require('../controllers/Ordercontroller');
 
 const { protect, protectUser } = require('../middleware/authMiddleware');
@@ -27,7 +28,7 @@ router.get('/admin/all',          protect, adminGetAllOrders);
 router.patch('/admin/:id/status', protect, adminUpdateOrderStatus);
 router.patch('/admin/:id/assign-rider', protect, adminAssignRider);
 router.get('/admin/:id', protect, adminGetOrderById); // ← getOrderById ki jagah
-
+router.patch('/admin/:id/delivery-estimate', protect, adminSetDeliveryEstimate);  // ← ADD
 
 
 module.exports = router;

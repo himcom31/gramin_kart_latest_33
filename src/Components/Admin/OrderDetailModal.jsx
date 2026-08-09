@@ -249,25 +249,31 @@ export default function OrderDetailModal({ order: initialOrder, onClose, onStatu
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [receiptLoading, setReceiptLoading] = useState(false);
   const [taxList, setTaxList] = useState([]);
+  // ── Delivery Estimate states ───────────────────────────────────────────────
+  const [estDays, setEstDays] = useState("");
+  const [estHours, setEstHours] = useState("");
+  const [estMins, setEstMins] = useState("");
+  const [estSaving, setEstSaving] = useState(false);
+  const [estMsg, setEstMsg] = useState("");
 
   useEffect(() => {
-  if (!initialOrder?.id) return;
-  setFetching(true);
-  (async () => {
-    try {
-      const res = await fetch(`${API_URL}/api/orders/admin/${initialOrder.id}`, { headers: authHdr() });
-      const data = await res.json();
-      if (data.success && data.order) {
-        console.log("ITEMS:", JSON.stringify(data.order.items, null, 2)); // ← ADD KARO
-        setOrder(data.order);
-        setNewStatus(data.order.status);
-        setPayStatus(data.order.paymentStatus);
-        setSelectedRider(data.order.assignedRider?.id || "");
-      }
-    } catch { }
-    finally { setFetching(false); }
-  })();
-}, [initialOrder?.id]);
+    if (!initialOrder?.id) return;
+    setFetching(true);
+    (async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/orders/admin/${initialOrder.id}`, { headers: authHdr() });
+        const data = await res.json();
+        if (data.success && data.order) {
+          console.log("ITEMS:", JSON.stringify(data.order.items, null, 2)); // ← ADD KARO
+          setOrder(data.order);
+          setNewStatus(data.order.status);
+          setPayStatus(data.order.paymentStatus);
+          setSelectedRider(data.order.assignedRider?.id || "");
+        }
+      } catch { }
+      finally { setFetching(false); }
+    })();
+  }, [initialOrder?.id]);
 
   useEffect(() => {
     (async () => {
@@ -369,9 +375,82 @@ export default function OrderDetailModal({ order: initialOrder, onClose, onStatu
     finally { setAssigning(false); }
   };
 
+
+  // ── Delivery Estimate Helper ───────────────────────────────────────────────
+  const getDeliveryEstimate = (estimatedDeliveryAt) => {
+    if (!estimatedDeliveryAt) return null;
+    const target = new Date(estimatedDeliveryAt);
+    const now = new Date();
+    const diffMs = target - now;
+
+    const dateStr = target.toLocaleString("en-IN", {
+      day: "2-digit", month: "short", year: "numeric",
+      hour: "2-digit", minute: "2-digit", hour12: true,
+    });
+
+    if (diffMs <= 0) return { label: "Overdue", dateStr, urgent: true, overdue: true };
+
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+    const remHours = diffHours % 24;
+    const remMins = diffMins % 60;
+
+    let timeLeft = "";
+    if (diffDays > 0) timeLeft += `${diffDays}d `;
+    if (remHours > 0) timeLeft += `${remHours}h `;
+    if (diffDays === 0 && remMins > 0) timeLeft += `${remMins}m`;
+
+    return { label: timeLeft.trim() + " remaining", dateStr, urgent: diffDays === 0, overdue: false };
+  };
+
+  // ── Save Estimate Handler ──────────────────────────────────────────────────
+  const handleSetEstimate = async () => {
+    const days = Number(estDays) || 0;
+    const hours = Number(estHours) || 0;
+    const mins = Number(estMins) || 0;
+
+    if (days === 0 && hours === 0 && mins === 0) {
+      setEstMsg("error:Please enter at least 1 minute.");
+      return;
+    }
+
+    const target = new Date();
+    target.setDate(target.getDate() + days);
+    target.setHours(target.getHours() + hours);
+    target.setMinutes(target.getMinutes() + mins);
+
+    // ✅ IST offset fix — 5 hours 30 minutes add karo
+    const IST_OFFSET = 5.5 * 60 * 60 * 1000;
+    const targetIST = new Date(target.getTime() + IST_OFFSET);
+
+    setEstSaving(true); setEstMsg("");
+    try {
+      const res = await fetch(`${API_URL}/api/orders/admin/${order.id}/delivery-estimate`, {
+        method: "PATCH",
+        headers: authHdr(),
+        body: JSON.stringify({ estimatedDeliveryAt: targetIST.toISOString() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setOrder(prev => ({ ...prev, estimatedDeliveryAt: target.toISOString() }));
+        setEstMsg("success");
+        setEstDays(""); setEstHours(""); setEstMins("");
+      } else {
+        setEstMsg("error:" + (data.message || "Failed"));
+      }
+    } catch {
+      setEstMsg("error:Network error");
+    } finally {
+      setEstSaving(false);
+    }
+  };
+
   const showRider =
     ["Processing", "Shipped"].includes(newStatus) ||
     ["Processing", "Shipped"].includes(order?.status);
+
+
 
   const onlineDrivers = drivers.filter(d => d.isOnline && d.isActive);
   const offlineDrivers = drivers.filter(d => !d.isOnline && d.isActive);
@@ -674,6 +753,115 @@ export default function OrderDetailModal({ order: initialOrder, onClose, onStatu
                     </div>
                   ))}
                 </div>
+                {/* ── Delivery Estimate Card ──────────────────────────────── */}
+                {order?.status !== "Delivered" && order?.status !== "Cancelled" && (
+                  <div style={{ background: "#fff", borderRadius: 10, padding: "16px 18px", boxShadow: "0 1px 3px rgba(0,0,0,0.07)" }}>
+                    <h3 style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 800, color: "#111827" }}>
+                      🕐 Delivery Estimate
+                    </h3>
+                    <p style={{ margin: "0 0 12px", fontSize: 11, color: "#9ca3af" }}>
+                      Set karo — kitne time mein deliver hoga
+                    </p>
+
+                    {/* Current estimate display */}
+                    {order?.estimatedDeliveryAt && (() => {
+                      const est = getDeliveryEstimate(order.estimatedDeliveryAt);
+                      return est ? (
+                        <div style={{
+                          background: est.overdue ? "#fef2f2" : est.urgent ? "#fffbeb" : "#f0fdf4",
+                          border: `1px solid ${est.overdue ? "#fecaca" : est.urgent ? "#fcd34d" : "#86efac"}`,
+                          borderRadius: 8, padding: "10px 12px", marginBottom: 12,
+                        }}>
+                          <p style={{ margin: "0 0 2px", fontSize: 11, fontWeight: 700, color: est.overdue ? "#991b1b" : est.urgent ? "#92400e" : "#166534" }}>
+                            {est.overdue ? "⚠️ OVERDUE" : est.urgent ? "⚠️ DUE TODAY" : "✅ ON TRACK"}
+                          </p>
+                          <p style={{ margin: "0 0 2px", fontSize: 15, fontWeight: 800, color: est.overdue ? "#dc2626" : est.urgent ? "#b45309" : "#15803d" }}>
+                            {est.label}
+                          </p>
+                          <p style={{ margin: 0, fontSize: 11, color: "#6b7280" }}>📅 {est.dateStr}</p>
+                        </div>
+                      ) : null;
+                    })()}
+
+                    {/* Inputs */}
+                    <p style={{ margin: "0 0 8px", fontSize: 12, fontWeight: 700, color: "#374151" }}>
+                      Set new estimate (from now):
+                    </p>
+                    <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                      {[
+                        { label: "Days", val: estDays, set: setEstDays, max: 30 },
+                        { label: "Hours", val: estHours, set: setEstHours, max: 23 },
+                        { label: "Mins", val: estMins, set: setEstMins, max: 59 },
+                      ].map(({ label, val, set, max }) => (
+                        <div key={label} style={{ flex: 1, textAlign: "center" }}>
+                          <p style={{ margin: "0 0 4px", fontSize: 10, fontWeight: 700, color: "#6b7280", textTransform: "uppercase" }}>{label}</p>
+                          <input
+                            type="number"
+                            min="0"
+                            max={max}
+                            value={val}
+                            onChange={e => set(e.target.value)}
+                            placeholder="0"
+                            style={{
+                              width: "100%", padding: "8px 4px", textAlign: "center",
+                              border: "1.5px solid #e5e7eb", borderRadius: 8,
+                              fontSize: 18, fontWeight: 800, color: "#111827",
+                              fontFamily: "inherit", outline: "none", boxSizing: "border-box",
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Quick presets */}
+                    <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
+                      {[
+                        { label: "30 min", d: 0, h: 0, m: 30 },
+                        { label: "2 hrs", d: 0, h: 2, m: 0 },
+                        { label: "1 day", d: 1, h: 0, m: 0 },
+                        { label: "2 days", d: 2, h: 0, m: 0 },
+                        { label: "3 days", d: 3, h: 0, m: 0 },
+                      ].map(p => (
+                        <button
+                          key={p.label}
+                          onClick={() => { setEstDays(String(p.d)); setEstHours(String(p.h)); setEstMins(String(p.m)); setEstMsg(""); }}
+                          style={{
+                            padding: "4px 10px", fontSize: 11, fontWeight: 700,
+                            background: "#f3f4f6", border: "1px solid #e5e7eb",
+                            borderRadius: 6, cursor: "pointer", color: "#374151", fontFamily: "inherit",
+                          }}
+                        >{p.label}</button>
+                      ))}
+                    </div>
+
+                    {estMsg === "success" && (
+                      <p style={{ margin: "0 0 8px", fontSize: 12, color: "#16a34a" }}>✓ Estimate saved successfully.</p>
+                    )}
+                    {estMsg.startsWith?.("error:") && (
+                      <p style={{ margin: "0 0 8px", fontSize: 12, color: "#ef4444" }}>✗ {estMsg.slice(6)}</p>
+                    )}
+
+                    <button
+                      className="odm-btn"
+                      onClick={handleSetEstimate}
+                      disabled={estSaving}
+                      style={{
+                        width: "100%", padding: "9px 0", background: "#2563eb",
+                        color: "#fff", border: "none", borderRadius: 8,
+                        fontSize: 13, fontWeight: 700,
+                        cursor: estSaving ? "not-allowed" : "pointer",
+                        fontFamily: "inherit", opacity: estSaving ? 0.65 : 1,
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                      }}
+                    >
+                      {estSaving
+                        ? <><div style={{ width: 13, height: 13, border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />Saving…</>
+                        : "💾 Save Estimate"
+                      }
+                    </button>
+                  </div>
+                )}
+
 
                 {showRider && (
                   <div style={{ background: "#f0fdf4", borderRadius: 10, padding: "16px 18px", boxShadow: "0 1px 3px rgba(0,0,0,0.07)", border: "1.5px solid #86efac" }}>

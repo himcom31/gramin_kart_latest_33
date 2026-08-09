@@ -43,7 +43,7 @@ const createOrderTables = async () => {
             note              TEXT          DEFAULT '',
             deliveredAt       DATETIME      DEFAULT NULL,
             cancelledAt       DATETIME      DEFAULT NULL,
-
+            estimatedDeliveryAt   DATETIME      DEFAULT NULL,
             assignedDriver_id INT           DEFAULT NULL,
 
             createdAt         TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
@@ -205,7 +205,7 @@ const Order = {
             couponCode, couponDiscount, shippingAddress: a,
             paymentMethod, paymentStatus,
             razorpayOrderId, razorpayPaymentId,
-            note, assignedDriver,
+            note, assignedDriver, estimatedDeliveryAt,
         } = data;
 
         const orderNumber = await generateOrderNumber();
@@ -218,8 +218,9 @@ const Order = {
                 addr_city, addr_state, addr_pincode, addr_landmark, addr_type,
                 paymentMethod, paymentStatus,
                 razorpayOrderId, razorpayPaymentId,
-                note, assignedDriver_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                note, assignedDriver_id,
+                estimatedDeliveryAt
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
             user, orderNumber, subtotal, discount ?? 0, shippingCharge ?? 0, tax ?? 0, total,
             couponCode ?? null, couponDiscount ?? 0,
@@ -228,6 +229,7 @@ const Order = {
             paymentMethod ?? 'COD', paymentStatus ?? 'Pending',
             razorpayOrderId ?? null, razorpayPaymentId ?? null,
             note ?? '', assignedDriver ?? null,
+            estimatedDeliveryAt ?? null,  // ← ADD
         ]);
 
         const orderId = result.insertId;
@@ -385,3 +387,8 @@ const Order = {
 };
 
 module.exports = Order;
+
+
+
+// ALTER TABLE orders 
+// ADD COLUMN IF NOT EXISTS estimatedDeliveryAt DATETIME DEFAULT NULL;

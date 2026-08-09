@@ -129,7 +129,17 @@ exports.placeOrder = async (req, res) => {
         const total    = Math.max(0, subtotal - discount + Number(shippingCharge) + Number(tax));
 
         // ── 5. Create order ───────────────────────────────────────────────
+        // ── 5. Create order ───────────────────────────────────────────────
         const paymentStatus = (paymentMethod === 'Razorpay' && razorpayPaymentId) ? 'Paid' : 'Pending';
+
+        // ── Default estimated delivery: 3 days from now ───────────────────
+        const DELIVERY_DAYS = 3;
+        const estDate = new Date();
+        estDate.setDate(estDate.getDate() + DELIVERY_DAYS);
+        const estimatedDeliveryAt = estDate
+            .toISOString()
+            .slice(0, 19)
+            .replace('T', ' ');
 
         const order = await Order.create({
             user: req.user.id,
@@ -147,6 +157,7 @@ exports.placeOrder = async (req, res) => {
             razorpayOrderId,
             razorpayPaymentId,
             note,
+            estimatedDeliveryAt,  // ← ADD
         });
 
         // ── 6. Clear cart ─────────────────────────────────────────────────
@@ -518,4 +529,41 @@ exports.adminGetOrderById = async (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
+};
+
+
+// ─── Admin: Set Delivery Estimate ─────────────────────────────────────────────
+exports.adminSetDeliveryEstimate = async (req, res) => {
+    try {
+        const { estimatedDeliveryAt } = req.body;
+
+        if (!estimatedDeliveryAt) {
+            return res.status(400).json({
+                success: false,
+                message: 'estimatedDeliveryAt required'
+            });
+        }
+
+        const formatted = new Date(estimatedDeliveryAt)
+            .toISOString()
+            .slice(0, 19)
+            .replace('T', ' ');
+
+        const order = await Order.findByIdAndUpdate(req.params.id, {
+            estimatedDeliveryAt: formatted
+        });
+
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                message: 'Order not found'
+            });
+        }
+
+        const updated = await Order.findById(req.params.id);
+        res.json({ success: true, order: updated });
+
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
 };
