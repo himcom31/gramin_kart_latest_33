@@ -407,43 +407,43 @@ export default function OrderDetailModal({ order: initialOrder, onClose, onStatu
 
   // ── Save Estimate Handler ──────────────────────────────────────────────────
   const handleSetEstimate = async () => {
-    const days = Number(estDays) || 0;
-    const hours = Number(estHours) || 0;
-    const mins = Number(estMins) || 0;
+  const days = Number(estDays) || 0;
+  const hours = Number(estHours) || 0;
+  const mins = Number(estMins) || 0;
 
-    if (days === 0 && hours === 0 && mins === 0) {
-      setEstMsg("error:Please enter at least 1 minute.");
-      return;
+  if (days === 0 && hours === 0 && mins === 0) {
+    setEstMsg("error:Please enter at least 1 minute.");
+    return;
+  }
+
+  const target = new Date();
+  target.setDate(target.getDate() + days);
+  target.setHours(target.getHours() + hours);
+  target.setMinutes(target.getMinutes() + mins);
+
+  setEstSaving(true);
+  setEstMsg("");
+
+  try {
+    const res = await fetch(`${API_URL}/api/orders/admin/${order.id}/delivery-estimate`, {
+      method: "PATCH",
+      headers: authHdr(),
+      body: JSON.stringify({ estimatedDeliveryAt: target.toISOString() }), // ✅ target, not targetIST
+    });
+    const data = await res.json();
+    if (data.success) {
+      setOrder(prev => ({ ...prev, estimatedDeliveryAt: target.toISOString() })); // ✅ target
+      setEstMsg("success");
+      setEstDays(""); setEstHours(""); setEstMins("");
+    } else {
+      setEstMsg("error:" + (data.message || "Failed"));
     }
-
-    const target = new Date();
-    target.setDate(target.getDate() + days);
-    target.setHours(target.getHours() + hours);
-    target.setMinutes(target.getMinutes() + mins);
-
-    // ✅ IST offset fix — 5 hours 30 minutes add karo
-    body: JSON.stringify({ estimatedDeliveryAt: target.toISOString() }),
-    setEstSaving(true); setEstMsg("");
-    try {
-      const res = await fetch(`${API_URL}/api/orders/admin/${order.id}/delivery-estimate`, {
-        method: "PATCH",
-        headers: authHdr(),
-        body: JSON.stringify({ estimatedDeliveryAt: targetIST.toISOString() }),
-      });
-      const data = await res.json();
-      if (data.success) {
-  setOrder(prev => ({ ...prev, estimatedDeliveryAt: targetIST.toISOString() }));
-        setEstMsg("success");
-        setEstDays(""); setEstHours(""); setEstMins("");
-      } else {
-        setEstMsg("error:" + (data.message || "Failed"));
-      }
-    } catch {
-      setEstMsg("error:Network error");
-    } finally {
-      setEstSaving(false);
-    }
-  };
+  } catch {
+    setEstMsg("error:Network error");
+  } finally {
+    setEstSaving(false);
+  }
+};
 
   const showRider =
     ["Processing", "Shipped"].includes(newStatus) ||
