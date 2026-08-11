@@ -4,8 +4,8 @@ const Order                  = require('../models/Order');
 const { generateInvoicePDF } = require('../Invoice/Generateinvoicepdf');
 const { protect, protectUser } = require('../middleware/authMiddleware');
 
-const LOGO_PATH = 'src/assets/logo.jpg';
-const SHOP_NAME = 'Gramin Kart';
+const LOGO_PATH = 'https://res.cloudinary.com/dweyshxeh/image/upload/v1786428578/User_app_logo_1_bfltue.webp';
+const SHOP_NAME = 'GraminCart';
 
 // Helper — shared PDF response logic
 async function sendInvoice(order, res) {

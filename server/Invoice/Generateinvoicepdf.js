@@ -50,7 +50,7 @@ function payStatusColor(status) {
 
 async function generateInvoicePDF(order, opts = {}) {
     const {
-        logoPath = "src/assets/logo.png",
+        logoPath = "https://res.cloudinary.com/dweyshxeh/image/upload/v1786428578/User_app_logo_1_bfltue.webp",
         shopName = "Gramin Cart",
     } = opts;
 
