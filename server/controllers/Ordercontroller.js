@@ -133,13 +133,7 @@ exports.placeOrder = async (req, res) => {
         const paymentStatus = (paymentMethod === 'Razorpay' && razorpayPaymentId) ? 'Paid' : 'Pending';
 
         // ── Default estimated delivery: 3 days from now ───────────────────
-        const DELIVERY_DAYS = 3;
-        const estDate = new Date();
-        estDate.setDate(estDate.getDate() + DELIVERY_DAYS);
-        const estimatedDeliveryAt = estDate
-            .toISOString()
-            .slice(0, 19)
-            .replace('T', ' ');
+        const estimatedDeliveryAt = null;
 
         const order = await Order.create({
             user: req.user.id,
