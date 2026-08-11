@@ -282,7 +282,7 @@ function generateInvoiceHTML(order, opts = {}) {
   <div class="header">
     <div class="logo-row">
       ${logoSrc ? `<img src="${logoSrc}" class="logo" alt="logo"/>` : ""}
-      <h1 class="shop-name">${shopName}</h1>
+      <h1 class="shop-name">GraminCart</h1>
     </div>
   </div>
 
