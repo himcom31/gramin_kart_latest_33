@@ -51,7 +51,7 @@ function payStatusColor(status) {
 async function generateInvoicePDF(order, opts = {}) {
     const {
         logoPath = "src/assets/logo.png",
-        shopName = "Gramin Kart",
+        shopName = "Gramin Cart",
     } = opts;
 
     const taxes      = await Tax.find({ isActive: true });

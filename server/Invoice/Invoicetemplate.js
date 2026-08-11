@@ -38,7 +38,7 @@ function generateInvoiceHTML(order, opts = {}) {
 
     const {
         logoPath = "src/assets/logo.png",
-        shopName = "Gramin Kart",
+        shopName = "Gramin Cart",
         taxes    = [],   // ← active taxes array [ { taxName, percentage }, ... ]
     } = opts;
 

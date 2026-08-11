@@ -19,7 +19,7 @@ const sendEmail = async (options) => {
         });
 
         await transporter.sendMail({
-            from:    `"Gramin Kart" <${config.mailFromAddress}>`,
+            from:    `"Gramin Cart" <${config.mailFromAddress}>`,
             to:      options.email,
             subject: options.subject,
             text:    options.message,
